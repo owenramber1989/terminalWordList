@@ -163,8 +163,18 @@ func insertEntry(db *sql.DB, importance int, table, insertion, meaning string) (
 	if table == "words" {
 		replace = "word"
 	}
-	query := fmt.Sprintf("INSERT INTO %s (%s, meaning, importance) VALUES (?, ?, ?)", table, replace)
-	result, err := db.Exec(query, insertion, meaning, importance)
+	var minID *int64
+	// 查询最小可用的ID
+	err := db.QueryRow("SELECT MIN(id+1) as nextID FROM " + table + " t WHERE NOT EXISTS (SELECT 1 FROM " + table + " WHERE id = t.id + 1)").Scan(&minID)
+	if err != nil {
+		return 0, err
+	}
+	if minID == nil {
+		tmp := int64(1)
+		minID = &tmp
+	}
+	query := fmt.Sprintf("INSERT INTO %s (id, %s, meaning, importance) VALUES (?, ?, ?, ?)", table, replace)
+	result, err := db.Exec(query, minID, insertion, meaning, importance)
 
 	if err != nil {
 		return 0, err
