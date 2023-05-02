@@ -57,7 +57,7 @@ func main() {
 	if operation == "-h" {
 		fmt.Printf("insert a word:      voc -iw word meaning importance\n\n")
 		fmt.Printf("insert a phrase:    voc -ip phrase meaning importance\n\n")
-		fmt.Printf("update importance:  voc -u word importance\n\n")
+		fmt.Printf("update importance:  voc -u table id importance\n\n")
 		fmt.Printf("query a word:       voc -q word\n\n")
 		fmt.Printf("show words:         voc -sw\n\n")
 		fmt.Printf("show phrases:       voc -sp\n\n")
@@ -102,17 +102,22 @@ func main() {
 		fmt.Printf("Successfully inserted entry with id: %d", insertedID)
 	}
 	if operation == "-u" {
-		if len(os.Args) != 4 {
-			fmt.Println("usage: voc -u word importance")
+		if len(os.Args) != 5 {
+			fmt.Println("usage: voc -u words/phrases id importance")
 			return
 		}
-		insertion := os.Args[2]
-		importanceStr := os.Args[3]
+		table := os.Args[2]
+		idStr := os.Args[3]
+		importanceStr := os.Args[4]
 		importance, er := strconv.Atoi(importanceStr)
 		if er != nil {
-			log.Fatal("Failed to convert importance to integer:", err)
+			log.Fatal("Failed to convert importance to integer:", er)
 		}
-		err := updateImportance(db, "words", insertion, importance)
+		id, e := strconv.Atoi(idStr)
+		if e != nil {
+			log.Fatal("Failed to convert ID to integer:", e)
+		}
+		err := updateImportance(db, table, id, importance)
 		if err != nil {
 			log.Fatal("Failed to update importance:", err)
 		}
@@ -201,13 +206,9 @@ func queryWords(db *sql.DB, word string) (string, int, error) {
 	return meaning, importance, nil
 }
 
-func updateImportance(db *sql.DB, table string, insertion string, importance int) error {
-	column := "word"
-	if table == "phrases" {
-		column = "entry"
-	}
-	query := fmt.Sprintf("UPDATE %s SET importance = ? WHERE %s = ?", table, column)
-	_, err := db.Exec(query, importance, insertion)
+func updateImportance(db *sql.DB, table string, id int, importance int) error {
+	query := fmt.Sprintf("UPDATE %s SET importance = ? WHERE id = ?", table)
+	_, err := db.Exec(query, importance, id)
 	if err != nil {
 		return err
 	}
