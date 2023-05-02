@@ -55,6 +55,7 @@ func main() {
 	fmt.Println("Successfully connected to the database")
 	fmt.Println("")
 	if operation == "-h" {
+		fmt.Printf("          WELCOME TO USE terminalWordList!      \n")
 		fmt.Printf("insert a word:      voc -iw word meaning importance\n\n")
 		fmt.Printf("insert a phrase:    voc -ip phrase meaning importance\n\n")
 		fmt.Printf("update importance:  voc -u table id importance\n\n")

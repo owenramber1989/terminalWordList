@@ -1,4 +1,4 @@
-.DEFAULT_GOAL := build
+.DEFAULT_GOAL := install
 
 fmt:
 	go fmt ./... 
@@ -16,3 +16,6 @@ build:vet
 	go build voc.go
 .PHONY:build
 
+install: build
+	cp voc /usr/local/bin/ 
+.PHONY:install
