@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/user"
 	"strconv"
 	"strings"
 
@@ -21,7 +22,7 @@ type Word struct {
 
 func main() {
 	// 设置数据库连接信息
-	user, password, host, database, err := readConfig("voc.conf")
+	user, password, host, database, err := readConfig("~/.config/voc/voc.conf")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -264,6 +265,13 @@ func delete(db *sql.DB, table string, id int, off int) error {
 }
 
 func readConfig(filename string) (string, string, string, string, error) {
+	if strings.HasPrefix(filename, "~") {
+		usr, err := user.Current()
+		if err != nil {
+			log.Fatal(err)
+		}
+		filename = strings.Replace(filename, "~", usr.HomeDir, 1)
+	}
 	config, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return "", "", "", "", fmt.Errorf("Failed to read the config file: %v", err)

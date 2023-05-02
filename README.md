@@ -24,13 +24,16 @@ We offered the insert, show, update importance, query, delete method for you. Wi
 
 <img width="1512" alt="image" src="https://user-images.githubusercontent.com/97386910/235547977-3fe45f9a-8b40-42e7-8805-f19a1ee56d24.png">
 
-
 ## Get started!
 
 ```zsh
 git clone https://github.com/owenramber1989/terminalWordList.git;
 cd terminalWordList;
-make
+make;
+sudo cp ./voc /usr/local/bin;
+md ~/.config/voc/;
+sudo cp ./voc.conf ~/.config/voc/;
+voc -h;
 ```
 
 ## Configure
