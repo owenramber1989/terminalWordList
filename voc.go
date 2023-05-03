@@ -235,7 +235,7 @@ func show(db *sql.DB, table string) error {
 		var entry, meaning string
 		var importance int
 
-		err := rows.Scan(&id, &entry, &meaning, &importance)
+		err = rows.Scan(&id, &entry, &meaning, &importance)
 		if err != nil {
 			return err
 		}
