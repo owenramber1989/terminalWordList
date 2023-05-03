@@ -12,6 +12,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/mattn/go-runewidth"
 )
 
 type Word struct {
@@ -19,6 +20,14 @@ type Word struct {
 	word       string
 	meaning    string
 	importance string
+	addedAt    string
+}
+type Item struct {
+	id         int
+	entry      string
+	meaning    string
+	importance string
+	daysPassed int
 }
 
 func main() {
@@ -218,6 +227,7 @@ func updateImportance(db *sql.DB, table string, id int, importance int) error {
 	}
 	return nil
 }
+
 func show(db *sql.DB, table string) error {
 	// Prepare the query string
 	query := fmt.Sprintf("SELECT * FROM %s", table)
@@ -229,10 +239,8 @@ func show(db *sql.DB, table string) error {
 	}
 	defer rows.Close()
 
-	// Print the column names with specified widths
-	fmt.Printf("%-4s\t%-30s\t%-30s\t%10s\t%10s\n", "ID", "Word/Phrase", "Meaning", "Importance", "DaysPassed")
-
-	// Iterate through the rows and print the data
+	// Store the entries in a slice to calculate max column widths
+	var items []Item
 	for rows.Next() {
 		var id int
 		var entry, meaning, addedAt string
@@ -242,21 +250,66 @@ func show(db *sql.DB, table string) error {
 		if err != nil {
 			return err
 		}
-		var addedAtTime time.Time
-		addedAtTime, err = time.Parse("2006-01-02 15:04:05", addedAt)
-		if err != nil {
-			return err
+
+		var daysPassed int
+		if addedAt != "" {
+			addedAtTime, err := time.Parse("2006-01-02 15:04:05", addedAt)
+			if err != nil {
+				return err
+			}
+
+			daysPassed = int(time.Since(addedAtTime).Hours() / 24)
+		} else {
+			daysPassed = -1
 		}
 
-		// Calculate the number of days passed since addedAt
-		daysPassed := int(time.Since(addedAtTime).Hours() / 24)
-		fmt.Printf("%-4d\t%-30s\t%-30s\t%-5d\t%-10d\n", id, entry, meaning, importance, daysPassed)
+		item := Item{
+			id:         id,
+			entry:      entry,
+			meaning:    meaning,
+			importance: fmt.Sprintf("%d", importance),
+			daysPassed: daysPassed,
+		}
+		items = append(items, item)
 	}
 
-	// Check for errors during iteration
-	err = rows.Err()
-	if err != nil {
-		return err
+	// Calculate the max width for each column
+	maxID, maxWord, maxMeaning, maxImportance := 2, 10, 7, 10
+	for _, item := range items {
+		idLen := len(strconv.Itoa(item.id))
+		wordLen := widthOfString(item.entry)
+		meaningLen := widthOfString(item.meaning)
+		importanceLen := len(item.importance)
+
+		if idLen > maxID {
+			maxID = idLen
+		}
+		if wordLen > maxWord {
+			maxWord = wordLen
+		}
+		if meaningLen > maxMeaning {
+			maxMeaning = meaningLen
+		}
+		if importanceLen > maxImportance {
+			maxImportance = importanceLen
+		}
+	}
+
+	// Print the table header with specified widths
+	headerFormat := fmt.Sprintf("| %%-%ds | %%-%ds | %%-%ds | %%-%ds | Days Ago |\n", maxID, maxWord, maxMeaning, maxImportance)
+	fmt.Printf("%d %d \n", maxWord, maxMeaning)
+	fmt.Printf(headerFormat, "ID", "Word/Phrase", "Meaning", "Importance")
+
+	// Print the separator line
+	fmt.Println(strings.Repeat("-", maxID+maxWord+maxMeaning+maxImportance+30))
+
+	// Iterate through the entries and print the data
+	for _, item := range items {
+		// Parse the addedAt string into a time.Time value
+
+		daysAgo := item.daysPassed
+		rowFormat := fmt.Sprintf("| %%-%dd | %%-%ds | %%-%ds | %%-%ds | %%-8d |\n", maxID, maxWord, maxMeaning-numberOfChinese(item.meaning), maxImportance)
+		fmt.Printf(rowFormat, item.id, item.entry, item.meaning, item.importance, daysAgo)
 	}
 
 	return nil
@@ -316,4 +369,30 @@ func readConfig(filename string) (string, string, string, string, error) {
 	}
 
 	return user, password, host, database, nil
+}
+
+func getStringWidth(s string) int {
+	return runewidth.StringWidth(s)
+}
+
+func widthOfString(s string) int {
+	width := 0
+	for _, r := range s {
+		if r < 128 {
+			width += 1
+		} else {
+			width += 2
+		}
+	}
+	return width
+}
+
+func numberOfChinese(s string) int {
+	width := 0
+	for _, r := range s {
+		if r >= 128 {
+			width += 1
+		}
+	}
+	return width
 }
