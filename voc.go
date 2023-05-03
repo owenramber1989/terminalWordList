@@ -9,6 +9,7 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -180,8 +181,10 @@ func insertEntry(db *sql.DB, importance int, table, insertion, meaning string) (
 		tmp := int64(1)
 		minID = &tmp
 	}
-	query := fmt.Sprintf("INSERT INTO %s (id, %s, meaning, importance) VALUES (?, ?, ?, ?)", table, replace)
-	result, err := db.Exec(query, minID, insertion, meaning, importance)
+	currentTime := time.Now().Format("2006-01-02 15:04:05")
+
+	query := fmt.Sprintf("INSERT INTO %s (id, %s, meaning, importance,added_at) VALUES (?, ?, ?, ?,?)", table, replace)
+	result, err := db.Exec(query, minID, insertion, meaning, importance, currentTime)
 
 	if err != nil {
 		return 0, err
@@ -227,20 +230,27 @@ func show(db *sql.DB, table string) error {
 	defer rows.Close()
 
 	// Print the column names with specified widths
-	fmt.Printf("%-4s\t%-30s\t%-30s\t%10s\n", "ID", "Word/Phrase", "Meaning", "Importance")
+	fmt.Printf("%-4s\t%-30s\t%-30s\t%10s\t%10s\n", "ID", "Word/Phrase", "Meaning", "Importance", "DaysPassed")
 
 	// Iterate through the rows and print the data
 	for rows.Next() {
 		var id int
-		var entry, meaning string
+		var entry, meaning, addedAt string
 		var importance int
 
-		err = rows.Scan(&id, &entry, &meaning, &importance)
+		err = rows.Scan(&id, &entry, &meaning, &importance, &addedAt)
+		if err != nil {
+			return err
+		}
+		var addedAtTime time.Time
+		addedAtTime, err = time.Parse("2006-01-02 15:04:05", addedAt)
 		if err != nil {
 			return err
 		}
 
-		fmt.Printf("%-4d\t%-30s\t%-30s\t%-5d\n", id, entry, meaning, importance)
+		// Calculate the number of days passed since addedAt
+		daysPassed := int(time.Since(addedAtTime).Hours() / 24)
+		fmt.Printf("%-4d\t%-30s\t%-30s\t%-5d\t%-10d\n", id, entry, meaning, importance, daysPassed)
 	}
 
 	// Check for errors during iteration
