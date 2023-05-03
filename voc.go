@@ -468,7 +468,7 @@ func findCycleIndex(timePassed int) int {
 
 func review(db *sql.DB, table string, start int, end int) error {
 	// 查询 id 介于 start 和 end 之间的行
-	rows, err := db.Query(fmt.Sprintf("SELECT id, added_at, cycle FROM %s WHERE id BETWEEN ? AND ?", table), start, end)
+	rows, err := db.Query(fmt.Sprintf("SELECT id, added_at, cycle, state FROM %s WHERE id BETWEEN ? AND ?", table), start, end)
 	if err != nil {
 		return err
 	}
@@ -479,8 +479,9 @@ func review(db *sql.DB, table string, start int, end int) error {
 		var id int
 		var addedAt string
 		var cycle int
+		var state int
 
-		err := rows.Scan(&id, &addedAt, &cycle)
+		err := rows.Scan(&id, &addedAt, &cycle, &state)
 		if err != nil {
 			return err
 		}
@@ -494,10 +495,13 @@ func review(db *sql.DB, table string, start int, end int) error {
 
 		// 调用 findCycleIndex 函数获取 index
 		index := findCycleIndex(timePassed)
-
-		// 如果 cycle >= index，更新 state 列为 index
-		if cycle >= index {
-			_, err := db.Exec(fmt.Sprintf("UPDATE %s SET state = ? WHERE id = ?", table), index, id)
+		_, err = db.Exec(fmt.Sprintf("UPDATE %s SET cycle = cycle + 1  WHERE id = ?", table), id)
+		if err != nil {
+			return err
+		}
+		// 如果 cycle > state，更新 state 列为 index
+		if cycle+1 > state && index > state {
+			_, err := db.Exec(fmt.Sprintf("UPDATE %s SET state = state + 1 WHERE id = ?", table), id)
 			if err != nil {
 				return err
 			}
