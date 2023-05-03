@@ -27,7 +27,8 @@ type Item struct {
 	entry      string
 	meaning    string
 	importance string
-	daysPassed int
+	cycle      int
+	state      int
 }
 
 func main() {
@@ -73,6 +74,8 @@ func main() {
 		fmt.Printf("show words:         voc -sw\n\n")
 		fmt.Printf("show phrases:       voc -sp\n\n")
 		fmt.Printf("delete entries:     voc -d table id offset\n\n")
+		fmt.Printf("review entries:     voc -r table startIndex endIndex\n\n")
+		fmt.Printf("recall entries:     voc -rc table startIndex endIndex\n\n")
 		fmt.Printf("help:               voc -h\n\n")
 	}
 	if operation == "-iw" {
@@ -133,6 +136,51 @@ func main() {
 			log.Fatal("Failed to update importance:", err)
 		}
 		fmt.Println("Successfully updated importance")
+	}
+	if operation == "-r" {
+		if len(os.Args) != 5 {
+			fmt.Println("usage: voc -r words/phrases startIndex endIndex")
+			return
+		}
+		table := os.Args[2]
+		startStr := os.Args[3]
+		start, err := strconv.Atoi(startStr)
+		if err != nil {
+			log.Fatal("Failed to convert start index to integer:", err)
+		}
+		endStr := os.Args[4]
+		end, err := strconv.Atoi(endStr)
+		if err != nil {
+			log.Fatal("Failed to convert end index to integer:", err)
+		}
+		err = review(db, table, start, end)
+		if err != nil {
+			log.Fatal("Failed to review:", err)
+		}
+		fmt.Println("Successfully reviewed")
+	}
+
+	if operation == "-rc" {
+		if len(os.Args) != 5 {
+			fmt.Println("usage: voc -rc words/phrases startIndex endIndex")
+			return
+		}
+		table := os.Args[2]
+		startStr := os.Args[3]
+		start, err := strconv.Atoi(startStr)
+		if err != nil {
+			log.Fatal("Failed to convert start index to integer:", err)
+		}
+		endStr := os.Args[4]
+		end, err := strconv.Atoi(endStr)
+		if err != nil {
+			log.Fatal("Failed to convert end index to integer:", err)
+		}
+		err = recall(db, table, start, end)
+		if err != nil {
+			log.Fatal("Failed to recall:", err)
+		}
+		fmt.Println("Successfully recalled")
 	}
 	if operation == "-q" {
 		word := os.Args[2]
@@ -245,30 +293,21 @@ func show(db *sql.DB, table string) error {
 		var id int
 		var entry, meaning, addedAt string
 		var importance int
-
-		err = rows.Scan(&id, &entry, &meaning, &importance, &addedAt)
+		var cycles int
+		var state int
+		err = rows.Scan(&id, &entry, &meaning, &importance, &addedAt, &cycles, &state)
 		if err != nil {
 			return err
 		}
 
-		var daysPassed int
-		if addedAt != "" {
-			addedAtTime, err := time.Parse("2006-01-02 15:04:05", addedAt)
-			if err != nil {
-				return err
-			}
-
-			daysPassed = int(time.Since(addedAtTime).Hours() / 24)
-		} else {
-			daysPassed = -1
-		}
-
+		//cycles, err = strconv.Atoi(cycles)
 		item := Item{
 			id:         id,
 			entry:      entry,
 			meaning:    meaning,
 			importance: fmt.Sprintf("%d", importance),
-			daysPassed: daysPassed,
+			cycle:      cycles,
+			state:      state,
 		}
 		items = append(items, item)
 	}
@@ -298,32 +337,31 @@ func show(db *sql.DB, table string) error {
 	// Print the table header with specified widths
 
 	if table == "words" {
-		fmt.Println(strings.Repeat("-", maxID+maxWord+2*maxMeaning+maxImportance+16))
+		fmt.Println(strings.Repeat("-", maxID+maxWord+2*maxMeaning+maxImportance+21))
 	} else {
-		fmt.Println(strings.Repeat("-", maxID+maxWord+3*maxMeaning/2+maxImportance+16))
+		fmt.Println(strings.Repeat("-", maxID+maxWord+3*maxMeaning/2+maxImportance+21))
 	}
-	headerFormat := fmt.Sprintf("| %%-%ds | %%-%ds | %%-%ds | %%-%ds | Days Ago |\n", maxID, maxWord, maxMeaning, maxImportance)
+	headerFormat := fmt.Sprintf("| %%-%ds | %%-%ds | %%-%ds | %%-%ds | cycle | state |\n", maxID, maxWord, maxMeaning, maxImportance)
 	fmt.Printf(headerFormat, "ID", "Word/Phrase", "Meaning", "Importance")
 
 	// Print the separator line
 	if table == "words" {
-		fmt.Println(strings.Repeat("-", maxID+maxWord+2*maxMeaning+maxImportance+16))
+		fmt.Println(strings.Repeat("-", maxID+maxWord+2*maxMeaning+maxImportance+21))
 	} else {
-		fmt.Println(strings.Repeat("-", maxID+maxWord+3*maxMeaning/2+maxImportance+16))
+		fmt.Println(strings.Repeat("-", maxID+maxWord+3*maxMeaning/2+maxImportance+21))
 	}
 	// Iterate through the entries and print the data
 	for _, item := range items {
 		// Parse the addedAt string into a time.Time value
 
-		daysAgo := item.daysPassed
-		rowFormat := fmt.Sprintf("| %%-%dd | %%-%ds | %%-%ds | %%-%ds | %%-8d |\n", maxID, maxWord, maxMeaning-numberOfChinese(item.meaning), maxImportance)
-		fmt.Printf(rowFormat, item.id, item.entry, item.meaning, item.importance, daysAgo)
+		rowFormat := fmt.Sprintf("| %%-%dd | %%-%ds | %%-%ds | %%-%ds | %%-5d | %%-5d |\n", maxID, maxWord, maxMeaning-numberOfChinese(item.meaning), maxImportance)
+		fmt.Printf(rowFormat, item.id, item.entry, item.meaning, item.importance, item.cycle, item.state)
 	}
 
 	if table == "words" {
-		fmt.Println(strings.Repeat("-", maxID+maxWord+2*maxMeaning+maxImportance+16))
+		fmt.Println(strings.Repeat("-", maxID+maxWord+2*maxMeaning+maxImportance+21))
 	} else {
-		fmt.Println(strings.Repeat("-", maxID+maxWord+3*maxMeaning/2+maxImportance+16))
+		fmt.Println(strings.Repeat("-", maxID+maxWord+3*maxMeaning/2+maxImportance+21))
 	}
 	return nil
 }
@@ -408,4 +446,77 @@ func numberOfChinese(s string) int {
 		}
 	}
 	return width
+}
+
+func findCycleIndex(timePassed int) int {
+	// 时间区间（单位：分钟）
+	timeIntervals := []int{5, 30, 24 * 60, 48 * 60, 96 * 60, 168 * 60, 360 * 60, 744 * 60}
+
+	// 使用二分法查找时间区间
+	left, right := 0, len(timeIntervals)
+	for left < right {
+		mid := left + (right-left)/2
+		if timePassed > timeIntervals[mid] {
+			left = mid + 1
+		} else {
+			right = mid
+		}
+	}
+
+	return left
+}
+
+func review(db *sql.DB, table string, start int, end int) error {
+	// 查询 id 介于 start 和 end 之间的行
+	rows, err := db.Query(fmt.Sprintf("SELECT id, added_at, cycle FROM %s WHERE id BETWEEN ? AND ?", table), start, end)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	// 遍历查询结果
+	for rows.Next() {
+		var id int
+		var addedAt string
+		var cycle int
+
+		err := rows.Scan(&id, &addedAt, &cycle)
+		if err != nil {
+			return err
+		}
+
+		// 计算 added_at 到现在过去的分钟数
+		addedAtTime, err := time.Parse("2006-01-02 15:04:05", addedAt)
+		if err != nil {
+			return err
+		}
+		timePassed := int(time.Since(addedAtTime).Minutes())
+
+		// 调用 findCycleIndex 函数获取 index
+		index := findCycleIndex(timePassed)
+
+		// 如果 cycle >= index，更新 state 列为 index
+		if cycle >= index {
+			_, err := db.Exec(fmt.Sprintf("UPDATE %s SET state = ? WHERE id = ?", table), index, id)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// 检查遍历过程中是否发生错误
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func recall(db *sql.DB, table string, start int, end int) error {
+	query := fmt.Sprintf("UPDATE %s SET cycle = cycle - 1  WHERE id between ? and ?", table)
+	_, err := db.Exec(query, start, end)
+	if err != nil {
+		return err
+	}
+	return nil
 }
