@@ -336,20 +336,12 @@ func show(db *sql.DB, table string) error {
 
 	// Print the table header with specified widths
 
-	if table == "words" {
-		fmt.Println(strings.Repeat("-", maxID+maxWord+2*maxMeaning+maxImportance+21))
-	} else {
-		fmt.Println(strings.Repeat("-", maxID+maxWord+3*maxMeaning/2+maxImportance+21))
-	}
+	fmt.Println(strings.Repeat("-", maxID+maxWord+maxMeaning+maxImportance+29))
 	headerFormat := fmt.Sprintf("| %%-%ds | %%-%ds | %%-%ds | %%-%ds | cycle | state |\n", maxID, maxWord, maxMeaning, maxImportance)
 	fmt.Printf(headerFormat, "ID", "Word/Phrase", "Meaning", "Importance")
 
 	// Print the separator line
-	if table == "words" {
-		fmt.Println(strings.Repeat("-", maxID+maxWord+2*maxMeaning+maxImportance+21))
-	} else {
-		fmt.Println(strings.Repeat("-", maxID+maxWord+3*maxMeaning/2+maxImportance+21))
-	}
+	fmt.Println(strings.Repeat("-", maxID+maxWord+maxMeaning+maxImportance+29))
 	// Iterate through the entries and print the data
 	for _, item := range items {
 		// Parse the addedAt string into a time.Time value
@@ -358,11 +350,7 @@ func show(db *sql.DB, table string) error {
 		fmt.Printf(rowFormat, item.id, item.entry, item.meaning, item.importance, item.cycle, item.state)
 	}
 
-	if table == "words" {
-		fmt.Println(strings.Repeat("-", maxID+maxWord+2*maxMeaning+maxImportance+21))
-	} else {
-		fmt.Println(strings.Repeat("-", maxID+maxWord+3*maxMeaning/2+maxImportance+21))
-	}
+	fmt.Println(strings.Repeat("-", maxID+maxWord+maxMeaning+maxImportance+29))
 	return nil
 }
 
