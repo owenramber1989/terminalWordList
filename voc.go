@@ -73,6 +73,7 @@ func main() {
 		fmt.Printf("query a word:       voc -q word\n\n")
 		fmt.Printf("show words:         voc -sw\n\n")
 		fmt.Printf("show phrases:       voc -sp\n\n")
+		fmt.Printf("***show order by importance: voc -sw/-sp 1***\n\n")
 		fmt.Printf("delete entries:     voc -d table id offset\n\n")
 		fmt.Printf("review entries:     voc -r table startIndex endIndex\n\n")
 		fmt.Printf("recall entries:     voc -rc table startIndex endIndex\n\n")
@@ -192,15 +193,52 @@ func main() {
 		fmt.Printf("重要性: %d\n", importance)
 	}
 	if operation == "-sw" {
-		err := show(db, "words")
-		if err != nil {
-			log.Fatal("Failed to show words:", err)
+		if len(os.Args) == 2 {
+			err := show(db, "words", 0)
+			if err != nil {
+				log.Fatal("Failed to show words:", err)
+			}
+		} else {
+			num, err := strconv.Atoi(os.Args[2])
+			if err != nil {
+				log.Fatal("Failed to convert num to integer:", err)
+			}
+			var showErr error
+			if num == 1 {
+				showErr = show(db, "words", 1)
+			} else {
+				showErr = show(db, "words", 0)
+			}
+
+			if showErr != nil {
+				log.Fatal("Failed to show words:", showErr)
+				// handle error
+			}
 		}
 	}
 	if operation == "-sp" {
-		err := show(db, "phrases")
-		if err != nil {
-			log.Fatal("Failed to show phrases:", err)
+
+		if len(os.Args) == 2 {
+			err := show(db, "phrases", 0)
+			if err != nil {
+				log.Fatal("Failed to show phrases:", err)
+			}
+		} else {
+			num, err := strconv.Atoi(os.Args[2])
+			if err != nil {
+				log.Fatal("Failed to convert num to integer:", err)
+			}
+			var showErr error
+			if num == 1 {
+				showErr = show(db, "phrases", 1)
+			} else {
+				showErr = show(db, "phrases", 0)
+			}
+
+			if showErr != nil {
+				log.Fatal("Failed to show phrases:", showErr)
+				// handle error
+			}
 		}
 	}
 	if operation == "-d" {
@@ -276,9 +314,14 @@ func updateImportance(db *sql.DB, table string, id int, importance int) error {
 	return nil
 }
 
-func show(db *sql.DB, table string) error {
+func show(db *sql.DB, table string, opt int) error {
 	// Prepare the query string
-	query := fmt.Sprintf("SELECT * FROM %s", table)
+	var query string
+	if opt == 0 {
+		query = fmt.Sprintf("SELECT * from %s", table)
+	} else {
+		query = fmt.Sprintf("SELECT * FROM %s order by importance desc", table)
+	}
 
 	// Execute the query
 	rows, err := db.Query(query)
